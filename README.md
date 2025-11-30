@@ -54,3 +54,9 @@ Court_Scheduler_Project/
 ├── dashboard.html          # The Frontend User Interface
 ├── requirements.txt       # List of Python dependencies
 └── README.md               # Project Documentation
+
+
+🚀 Installation & Setup
+✅ Prerequisites
+- Python 3.10 or higher
+- pip (Python Package Manager)

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Court Scheduling System - Dashboard</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            color: #888;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .change {
+            font-size: 0.9rem;
+            color: #28a745;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* THIS IS THE FIX: A container to lock the chart size */
+        .chart-container {
+            position: relative;
+            height: 300px; 
+            width: 100%;
+        }
+
+        .chart-card h2 {
+            color: #333;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .controls h2 {
+            color: #333;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-urgent {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-normal {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-low {
+            background: #28a745;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .realtime-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:5000/api';
+
+        // Main Dashboard Component
+        function Dashboard() {
+            const [stats, setStats] = useState(null);
+            const [cases, setCases] = useState([]);
+            const [schedules, setSchedules] = useState([]);
+            const [gaRuns, setGaRuns] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [showModal, setShowModal] = useState(false);
+            const [modalType, setModalType] = useState('');
+
+            // Refs for charts
+            const caseTypeChartRef = useRef(null);
+            const priorityChartRef = useRef(null);
+            const fitnessChartRef = useRef(null);
+
+            useEffect(() => {
+                loadDashboardData();
+                const interval = setInterval(loadDashboardData, 30000); // Refresh every 30s
+                return () => clearInterval(interval);
+            }, []);
+
+            const loadDashboardData = async () => {
+                try {
+                    const [statsRes, casesRes, schedulesRes, gaRunsRes] = await Promise.all([
+                        axios.get(`${API_BASE_URL}/statistics/dashboard`),
+                        axios.get(`${API_BASE_URL}/cases?status=Pending`),
+                        axios.get(`${API_BASE_URL}/schedules`),
+                        axios.get(`${API_BASE_URL}/ga/runs?limit=5`)
+                    ]);
+
+                    setStats(statsRes.data.data);
+                    setCases(casesRes.data.data.slice(0, 10));
+                    setSchedules(schedulesRes.data.data.slice(0, 10));
+                    setGaRuns(gaRunsRes.data.data);
+                    setLoading(false);
+
+                    // Update charts
+                    updateCharts(statsRes.data.data);
+                } catch (error) {
+                    console.error('Error loading dashboard data:', error);
+                    setLoading(false);
+                }
+            };
+
+            const updateCharts = (statsData) => {
+                // Case Type Chart
+                if (caseTypeChartRef.current) {
+                    const ctx = caseTypeChartRef.current.getContext('2d');
+                    if (window.caseTypeChart) window.caseTypeChart.destroy();
+                    
+                    window.caseTypeChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(statsData.case_by_type),
+                            datasets: [{
+                                data: Object.values(statsData.case_by_type),
+                                backgroundColor: ['#667eea', '#764ba2', '#f093fb']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Priority Chart
+                if (priorityChartRef.current) {
+                    const ctx = priorityChartRef.current.getContext('2d');
+                    if (window.priorityChart) window.priorityChart.destroy();
+                    
+                    window.priorityChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Urgent', 'Normal', 'Low'],
+                            datasets: [{
+                                label: 'Cases by Priority',
+                                data: Object.values(statsData.case_by_priority),
+                                backgroundColor: ['#dc3545', '#ffc107', '#28a745']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+            };
+
+            const runGA = async () => {
+                try {
+                    const response = await axios.post(`${API_BASE_URL}/ga/run`, {
+                        population_size: 100,
+                        max_generations: 500
+                    });
+                    alert('GA execution started! Run ID: ' + response.data.data.run_id);
+                    loadDashboardData();
+                } catch (error) {
+                    alert('Error running GA: ' + error.message);
+                }
+            };
+
+            const generateSampleData = async () => {
+                try {
+                    await axios.post(`${API_BASE_URL}/data/generate-sample`, {
+                        num_cases: 50,
+                        num_judges: 10,
+                        num_courtrooms: 15,
+                        num_lawyers: 30
+                    });
+                    alert('Sample data generated successfully!');
+                    loadDashboardData();
+                } catch (error) {
+                    alert('Error generating sample data: ' + error.message);
+                }
+            };
+
+            const exportData = async () => {
+                window.open(`${API_BASE_URL}/data/export`, '_blank');
+            };
+
+            if (loading) {
+                return <div className="loading">Loading dashboard data...</div>;
+            }
+
+            return (
+                <div className="dashboard">
+                    <div className="header">
+                        <h1>
+                            <span className="realtime-indicator"></span>
+                            Court Scheduling System
+                        </h1>
+                        <p>Intelligent scheduling powered by Genetic Algorithm</p>
+                    </div>
+
+                    {stats && (
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <h3>Total Cases</h3>
+                                <div className="value">{stats.total_cases}</div>
+                                <div className="change">All time</div>
+                            </div>
+                            <div className="stat-card">
+                                <h3>Pending Cases</h3>
+                                <div className="value">{stats.pending_cases}</div>
+                                <div className="change">Awaiting schedule</div>
+                            </div>
+                            <div className="stat-card">
+                                <h3>Scheduled Cases</h3>
+                                <div className="value">{stats.scheduled_cases}</div>
+                                <div className="change">This month</div>
+                            </div>
+                            <div className="stat-card">
+                                <h3>Active Judges</h3>
+                                <div className="value">{stats.total_judges}</div>
+                                <div className="change">Available</div>
+                            </div>
+                            <div className="stat-card">
+                                <h3>Courtrooms</h3>
+                                <div className="value">{stats.total_courtrooms}</div>
+                                <div className="change">Active</div>
+                            </div>
+                            <div className="stat-card">
+                                <h3>Upcoming Hearings</h3>
+                                <div className="value">{stats.upcoming_schedules}</div>
+                                <div className="change">Next 7 days</div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="controls">
+                        <h2>Quick Actions</h2>
+                        <div className="button-group">
+                            <button className="btn btn-primary" onClick={runGA}>
+                                🧬 Run Genetic Algorithm
+                            </button>
+                            <button className="btn btn-success" onClick={generateSampleData}>
+                                📊 Generate Sample Data
+                            </button>
+                            <button className="btn btn-warning" onClick={exportData}>
+                                💾 Export Data
+                            </button>
+                            <button className="btn btn-primary" onClick={() => { setModalType('case'); setShowModal(true); }}>
+                                ➕ Add Case
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="charts-grid">
+                        <div className="chart-card">
+                            <h2>Cases by Type</h2>
+                            <div className="chart-container">
+                                <canvas ref={caseTypeChartRef}></canvas>
+                            </div>
+                        </div>
+                        <div className="chart-card">
+                            <h2>Cases by Priority</h2>
+                            <div className="chart-container">
+                                <canvas ref={priorityChartRef}></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="table-container">
+                        <h2>Recent Pending Cases</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Case Number</th>
+                                    <th>Type</th>
+                                    <th>Priority</th>
+                                    <th>Filing Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {cases.map(c => (
+                                    <tr key={c.id}>
+                                        <td>{c.case_number}</td>
+                                        <td>{c.case_type}</td>
+                                        <td>
+                                            <span className={`badge badge-${c.priority === 1 ? 'urgent' : c.priority === 2 ? 'normal' : 'low'}`}>
+                                                {c.priority === 1 ? 'Urgent' : c.priority === 2 ? 'Normal' : 'Low'}
+                                            </span>
+                                        </td>
+                                        <td>{new Date(c.filing_date).toLocaleDateString()}</td>
+                                        <td>{c.status}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="table-container" style={{marginTop: '30px'}}>
+                        <h2>Recent GA Runs</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Run ID</th>
+                                    <th>Timestamp</th>
+                                    <th>Generations</th>
+                                    <th>Best Fitness</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {gaRuns.map(run => (
+                                    <tr key={run.id}>
+                                        <td>#{run.id}</td>
+                                        <td>{new Date(run.run_timestamp).toLocaleString()}</td>
+                                        <td>{run.actual_generations || 'N/A'}</td>
+                                        <td>{run.best_fitness ? run.best_fitness.toFixed(6) : 'N/A'}</td>
+                                        <td>{run.status}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {showModal && (
+                        <AddCaseModal 
+                            onClose={() => setShowModal(false)} 
+                            onSuccess={loadDashboardData}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        function AddCaseModal({ onClose, onSuccess }) {
+            const [formData, setFormData] = useState({
+                case_number: '',
+                case_type: 'Civil',
+                priority: 2,
+                estimated_duration: 120,
+                required_specialization: 'Civil Law',
+                description: ''
+            });
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                try {
+                    await axios.post(`${API_BASE_URL}/cases`, formData);
+                    alert('Case added successfully!');
+                    onSuccess();
+                    onClose();
+                } catch (error) {
+                    alert('Error adding case: ' + error.message);
+                }
+            };
+
+            return (
+                <div className="modal" onClick={onClose}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <h2>Add New Case</h2>
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-group">
+                                <label>Case Number</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    value={formData.case_number}
+                                    onChange={(e) => setFormData({...formData, case_number: e.target.value})}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Case Type</label>
+                                <select 
+                                    value={formData.case_type}
+                                    onChange={(e) => setFormData({...formData, case_type: e.target.value})}
+                                >
+                                    <option>Civil</option>
+                                    <option>Criminal</option>
+                                    <option>Family</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Priority (1=Urgent, 2=Normal, 3=Low)</label>
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="3"
+                                    value={formData.priority}
+                                    onChange={(e) => setFormData({...formData, priority: parseInt(e.target.value)})}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Estimated Duration (minutes)</label>
+                                <input 
+                                    type="number"
+                                    value={formData.estimated_duration}
+                                    onChange={(e) => setFormData({...formData, estimated_duration: parseInt(e.target.value)})}
+                                />
+                            </div>
+                            <div className="button-group">
+                                <button type="submit" className="btn btn-primary">Add Case</button>
+                                <button type="button" className="btn btn-warning" onClick={onClose}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render the dashboard
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+    </script>
+</body>
+</html>

@@ -54,9 +54,7 @@ Step 4: Generate Sample DataPopulate the system with dummy Indian court cases an
 # Output: Sample data generated...
 ▶️ How to Run1. Start the Backend ServerOpen your terminal and run:Bashpython app.py
 Keep this terminal window open! You should see a message like:* Running on http://0.0.0.0:50002. Open the DashboardNavigate to the project folder in your File Explorer.Double-click the dashboard.html file.It will open in your browser and connect to the running server automatically.🧪 Demo Script (How to Use)Dashboard Overview: Upon loading, check the top cards. You will see "Total Cases" and "Active Judges".Run AI: Click the blue "🧬 Run Genetic Algorithm" button.Watch: Look at your terminal window to see the generation logs scrolling.Result: Wait 10-20 seconds. The "Recent GA Runs" table at the bottom will update with the best fitness score.Analyze Charts: Observe the doughnut chart for case types and bar chart for priority distribution.Add Custom Case: Click "➕ Add Case" to manually input a high-priority case and see how the scheduler handles it.📡 API EndpointsMethodEndpointDescriptionGET/api/healthCheck system status.GET/api/casesFetch pending cases.POST/api/ga/runTrigger the Genetic Algorithm.GET/api/statistics/dashboardGet real-time stats.🤝 ContributingContributions are welcome! Please open an issue or submit a pull request.📜 LicenseThis project is licensed under the MIT License - see the LICENSE file for details.Developed for MCA Research Project (MCARP31), 2025.
----
-
-### 2. File Name: `LICENSE`
+### 2. File: `LICENSE`
 
 ```text
 MIT License
@@ -80,7 +78,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-3. File Name: .gitignorePlaintext# Python cache
+3. File: .gitignorePlaintext# Python cache
 __pycache__/
 *.py[cod]
 *$py.class

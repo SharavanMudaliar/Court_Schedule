@@ -442,18 +442,18 @@ class GeneticOperators:
         point2 = random.randint(point1 + 1, len(parent1))
         
         child1_genes = (parent1.genes[:point1] + 
-                       parent2.genes[point1:point2] + 
-                       parent1.genes[point2:])
+                        parent2.genes[point1:point2] + 
+                        parent1.genes[point2:])
         
         child2_genes = (parent2.genes[:point1] + 
-                       parent1.genes[point1:point2] + 
-                       parent2.genes[point2:])
+                        parent1.genes[point1:point2] + 
+                        parent2.genes[point2:])
         
         return Chromosome(child1_genes), Chromosome(child2_genes)
     
     @staticmethod
     def swap_mutation(chromosome: Chromosome, judges: List[Judge], 
-                     courtrooms: List[Courtroom], time_slots: List[TimeSlot]) -> Chromosome:
+                      courtrooms: List[Courtroom], time_slots: List[TimeSlot]) -> Chromosome:
         """Mutate by swapping or changing assignments"""
         mutated = chromosome.copy()
         
@@ -514,14 +514,10 @@ class CourtSchedulerGA:
         print("=" * 80)
         print(f"Cases: {len(self.cases)}")
         print(f"Judges: {len(self.judges)}")
-        print(f"Courtrooms: {len(self.courtrooms)}")
-        print(f"Time Slots: {len(self.time_slots)}")
         print(f"Population Size: {self.config.POPULATION_SIZE}")
-        print(f"Max Generations: {self.config.MAX_GENERATIONS}")
         print("=" * 80)
         
         # Initialize population
-        print("\nInitializing population...")
         population = self.operators.initialize_population(
             self.cases, self.judges, self.courtrooms, self.time_slots,
             self.config.POPULATION_SIZE
@@ -535,6 +531,8 @@ class CourtSchedulerGA:
         while generation < self.config.MAX_GENERATIONS:
             # Evaluate fitness
             fitness_scores = []
+            generation_improved = False # Track improvement per generation
+            
             for individual in population:
                 fitness = self.evaluator.evaluate(individual)
                 fitness_scores.append(fitness)
@@ -542,20 +540,21 @@ class CourtSchedulerGA:
                 if fitness > self.best_fitness:
                     self.best_fitness = fitness
                     self.best_solution = individual.copy()
-                    stagnation_counter = 0
-                else:
-                    stagnation_counter += 1
+                    generation_improved = True
             
             # Record statistics
             self.fitness_history.append(self.best_fitness)
             self.avg_fitness_history.append(np.mean(fitness_scores))
             
+            # Stagnation check (FIXED LOGIC)
+            if generation_improved:
+                stagnation_counter = 0
+            else:
+                stagnation_counter += 1
+            
             # Print progress
             if generation % 50 == 0 or generation == self.config.MAX_GENERATIONS - 1:
-                print(f"Generation {generation:4d} | "
-                      f"Best Fitness: {self.best_fitness:.6f} | "
-                      f"Avg Fitness: {np.mean(fitness_scores):.6f} | "
-                      f"Violations: {sum(self.best_solution.constraint_violations.values())}")
+                print(f"Gen {generation:4d} | Best: {self.best_fitness:.6f} | Avg: {np.mean(fitness_scores):.6f}")
             
             # Check convergence
             if stagnation_counter > self.config.STAGNATION_LIMIT:
@@ -571,7 +570,7 @@ class CourtSchedulerGA:
             # Create new population
             offspring = []
             
-            # Elitism: Keep best individuals
+            # Elitism
             elite_count = max(1, int(self.config.POPULATION_SIZE * self.config.ELITISM_RATE))
             elite_indices = np.argsort(fitness_scores)[-elite_count:]
             offspring.extend([population[i].copy() for i in elite_indices])
@@ -588,13 +587,9 @@ class CourtSchedulerGA:
                 
                 # Mutation
                 if random.random() < self.config.MUTATION_RATE:
-                    child1 = self.operators.swap_mutation(
-                        child1, self.judges, self.courtrooms, self.time_slots
-                    )
+                    child1 = self.operators.swap_mutation(child1, self.judges, self.courtrooms, self.time_slots)
                 if random.random() < self.config.MUTATION_RATE:
-                    child2 = self.operators.swap_mutation(
-                        child2, self.judges, self.courtrooms, self.time_slots
-                    )
+                    child2 = self.operators.swap_mutation(child2, self.judges, self.courtrooms, self.time_slots)
                 
                 offspring.extend([child1, child2])
             
@@ -604,92 +599,11 @@ class CourtSchedulerGA:
         
         print("\n" + "=" * 80)
         print("EVOLUTION COMPLETE")
-        print("=" * 80)
         print(f"Final Generation: {generation}")
         print(f"Best Fitness: {self.best_fitness:.6f}")
-        print(f"Total Constraint Violations: {sum(self.best_solution.constraint_violations.values())}")
-        print("\nConstraint Violation Details:")
-        for violation_type, count in self.best_solution.constraint_violations.items():
-            if count > 0:
-                print(f"  - {violation_type}: {count}")
         
         return self.best_solution, self.best_fitness
-    
-    def export_schedule(self, filename: str = "schedule.json"):
-        """Export best schedule to JSON file"""
-        if self.best_solution:
-            schedule_data = {
-                'generation_timestamp': datetime.now().isoformat(),
-                'fitness_score': self.best_fitness,
-                'total_cases': len(self.cases),
-                'constraint_violations': self.best_solution.constraint_violations,
-                'schedule': self.best_solution.to_dict()
-            }
-            
-            with open(filename, 'w') as f:
-                json.dump(schedule_data, f, indent=2)
-            
-            print(f"\nSchedule exported to: {filename}")
-    
-    def print_schedule_summary(self, num_entries: int = 10):
-        """Print summary of the best schedule"""
-        if not self.best_solution:
-            print("No solution available yet.")
-            return
-        
-        print("\n" + "=" * 80)
-        print(f"SCHEDULE SUMMARY (First {num_entries} entries)")
-        print("=" * 80)
-        
-        for i, gene in enumerate(self.best_solution.genes[:num_entries]):
-            print(f"\n{i+1}. {gene}")
-            print(f"   Case Type: {gene.case.case_type} | Priority: {gene.case.priority}")
-            print(f"   Judge Specialization: {', '.join(gene.judge.specialization)}")
-            print(f"   Duration: {gene.case.estimated_duration} min")
-
-# =====================================================================
-# MAIN EXECUTION
-# =====================================================================
-
-def main():
-    """Main execution function"""
-    
-    # Set random seed for reproducibility
-    random.seed(42)
-    np.random.seed(42)
-    
-    print("\n" + "=" * 80)
-    print("GENERATING TEST DATA")
-    print("=" * 80)
-    
-    # Generate test data
-    generator = DataGenerator()
-    cases = generator.generate_cases(num_cases=50)
-    judges = generator.generate_judges(num_judges=10)
-    courtrooms = generator.generate_courtrooms(num_rooms=15)
-    time_slots = generator.generate_time_slots(
-        start_date=datetime.now(), 
-        num_days=20
-    )
-    
-    print(f"Generated {len(cases)} cases")
-    print(f"Generated {len(judges)} judges")
-    print(f"Generated {len(courtrooms)} courtrooms")
-    print(f"Generated {len(time_slots)} time slots")
-    
-    # Create and run GA
-    scheduler = CourtSchedulerGA(cases, judges, courtrooms, time_slots)
-    best_schedule, best_fitness = scheduler.run()
-    
-    # Display results
-    scheduler.print_schedule_summary(num_entries=15)
-    
-    # Export schedule
-    scheduler.export_schedule("court_schedule_output.json")
-    
-    print("\n" + "=" * 80)
-    print("EXECUTION COMPLETED SUCCESSFULLY")
-    print("=" * 80)
 
 if __name__ == "__main__":
-    main()
+    # Simple test logic if run directly
+    pass

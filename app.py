@@ -3,6 +3,7 @@
 
 import sys
 import os
+import random
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from flask import Flask, request, jsonify
@@ -11,12 +12,17 @@ from datetime import datetime, timedelta
 from functools import wraps
 import traceback
 from typing import Dict, Any
+from sqlalchemy import text 
 
 # Import database models and operations
 from database_models import (
     DatabaseManager, DatabaseOperations, Case, Judge, Courtroom,
-    Lawyer, Schedule, GenerationRun, FitnessHistory)
+    Lawyer, Schedule, GenerationRun, FitnessHistory, 
+    case_plaintiff_lawyers, case_defendant_lawyers) 
 from db_import_export import DataImporter, DataExporter, SampleDataGenerator
+
+# Import the Genetic Algorithm logic
+import court_scheduler_ga as ga
 
 app = Flask(__name__)
 CORS(app)
@@ -58,7 +64,7 @@ def handle_errors(f):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    return jsonify({'status': 'healthy', 'timestamp': datetime.utcnow().isoformat()})
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
 @app.route('/api/cases', methods=['GET'])
 @handle_errors
@@ -83,20 +89,68 @@ def create_case():
     if 'filing_date' in data:
         data['filing_date'] = datetime.fromisoformat(data['filing_date'])
     else:
-        data['filing_date'] = datetime.utcnow()
+        data['filing_date'] = datetime.now()
+    
     case = db_ops.create_case(data)
+    case_data = case.to_dict() 
     session.close()
-    return jsonify(success_response(case.to_dict(), "Case created")), 201
+    return jsonify(success_response(case_data, "Case created")), 201
+
+@app.route('/api/cases/<int:case_id>', methods=['DELETE'])
+@handle_errors
+def delete_case(case_id):
+    session = get_db_session()
+    db_ops = DatabaseOperations(session)
+    success = db_ops.delete_case(case_id)
+    session.close()
+    
+    if not success:
+        return error_response(f"Case {case_id} not found", 404)
+        
+    return jsonify(success_response(None, "Case deleted successfully"))
+
+@app.route('/api/data/reset', methods=['POST'])
+@handle_errors
+def reset_data():
+    session = get_db_session()
+    try:
+        # CRITICAL FIX: Delete from association tables first
+        session.execute(case_plaintiff_lawyers.delete())
+        session.execute(case_defendant_lawyers.delete())
+        
+        session.query(Schedule).delete()
+        session.query(Case).delete()
+        session.query(FitnessHistory).delete()
+        session.query(GenerationRun).delete()
+        
+        session.commit()
+        return jsonify(success_response(None, "Database reset complete."))
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
 
 @app.route('/api/schedules', methods=['GET'])
 @handle_errors
 def get_schedules():
     session = get_db_session()
-    db_ops = DatabaseOperations(session)
-    start = datetime.utcnow()
-    end = start + timedelta(days=30)
-    schedules = db_ops.get_schedules_by_date(start, end)
-    result = [schedule.to_dict() for schedule in schedules]
+    schedules = session.query(Schedule).join(Case).join(Judge).join(Courtroom).order_by(Schedule.scheduled_date, Schedule.start_time).all()
+    
+    result = []
+    for s in schedules:
+        result.append({
+            'id': s.id,
+            'case_number': s.case.case_number,
+            'case_priority': s.case.priority,
+            'case_type': s.case.case_type,
+            'judge_name': s.judge.name,
+            'courtroom': s.courtroom.courtroom_number,
+            'date': s.scheduled_date.strftime('%Y-%m-%d'),
+            'time': f"{s.start_time} - {s.end_time}",
+            'status': s.status
+        })
+        
     session.close()
     return jsonify(success_response(result))
 
@@ -110,7 +164,7 @@ def get_dashboard_statistics():
     total_judges = session.query(Judge).filter(Judge.is_active == True).count()
     total_courtrooms = session.query(Courtroom).filter(Courtroom.is_active == True).count()
     
-    today = datetime.utcnow()
+    today = datetime.now()
     week_later = today + timedelta(days=7)
     upcoming_schedules = session.query(Schedule).filter(
         Schedule.scheduled_date >= today,
@@ -147,27 +201,84 @@ def run_genetic_algorithm():
     session = get_db_session()
     db_ops = DatabaseOperations(session)
     
-    run_data = {
-        'run_timestamp': datetime.utcnow(),
-        'population_size': data.get('population_size', 100),
-        'max_generations': data.get('max_generations', 500),
-        'crossover_rate': 0.8,
-        'mutation_rate': 0.15,
-        'status': 'Running'
-    }
-    run = db_ops.create_generation_run(run_data)
-    run_id = run.id
-    session.close()
-    
-    return jsonify(success_response({'run_id': run_id, 'status': 'Running', 'message': 'GA started'}))
+    try:
+        db_cases = session.query(Case).filter(Case.status == 'Pending').all()
+        db_judges = session.query(Judge).filter(Judge.is_active == True).all()
+        db_courtrooms = session.query(Courtroom).filter(Courtroom.is_active == True).all()
+        
+        if not db_cases:
+            return error_response("No pending cases to schedule")
 
-@app.route('/api/ga/runs', methods=['GET'])
+        ga_cases = [ga.Case(str(c.id), c.case_type, c.priority, c.estimated_duration, c.filing_date, c.last_hearing_date, [], [], c.required_specialization) for c in db_cases]
+        ga_judges = [ga.Judge(str(j.id), j.name, [s.name for s in j.specializations], j.experience_years) for j in db_judges]
+        ga_rooms = [ga.Courtroom(str(r.id), r.courtroom_number, r.capacity, []) for r in db_courtrooms]
+        ga_slots = ga.DataGenerator.generate_time_slots(datetime.now(), num_days=5)
+        
+        scheduler = ga.CourtSchedulerGA(ga_cases, ga_judges, ga_rooms, ga_slots)
+        best_solution, fitness = scheduler.run()
+        
+        for gene in best_solution.genes:
+            new_schedule = Schedule(
+                case_id=int(gene.case.case_id),
+                judge_id=int(gene.judge.judge_id),
+                courtroom_id=int(gene.courtroom.courtroom_id),
+                scheduled_date=gene.time_slot.date,
+                start_time=gene.time_slot.start_time,
+                end_time=gene.time_slot.end_time,
+                status='Scheduled',
+                fitness_score=fitness
+            )
+            session.add(new_schedule)
+            case_db = session.query(Case).get(int(gene.case.case_id))
+            case_db.status = 'Scheduled'
+            
+        run_data = {
+            'run_timestamp': datetime.now(),
+            'population_size': 100,
+            'max_generations': 500,
+            'crossover_rate': 0.8,
+            'mutation_rate': 0.15,
+            'best_fitness': fitness,
+            'status': 'Completed',
+            'actual_generations': len(scheduler.fitness_history)
+        }
+        run = db_ops.create_generation_run(run_data)
+        
+        # FIX: Explicitly add history objects to session
+        for i, fit_score in enumerate(scheduler.fitness_history):
+            if i % 5 == 0 or i == len(scheduler.fitness_history) - 1:
+                hist = FitnessHistory(
+                    generation_run_id=run.id, 
+                    generation_number=i,
+                    best_fitness=float(fit_score),
+                    avg_fitness=float(scheduler.avg_fitness_history[i]),
+                    worst_fitness=0.0
+                )
+                session.add(hist)
+        
+        session.commit()
+        return jsonify(success_response({'run_id': run.id, 'status': 'Completed', 'message': f'Scheduled {len(best_solution.genes)} cases successfully'}))
+        
+    except Exception as e:
+        session.rollback()
+        print(traceback.format_exc())
+        return error_response(str(e))
+    finally:
+        session.close()
+
+@app.route('/api/ga/history/<int:run_id>', methods=['GET'])
 @handle_errors
-def get_ga_runs():
+def get_ga_history(run_id):
     session = get_db_session()
-    db_ops = DatabaseOperations(session)
-    runs = db_ops.get_recent_runs(limit=10)
-    result = [run.to_dict() for run in runs]
+    if run_id == 0:
+        latest_run = session.query(GenerationRun).order_by(GenerationRun.run_timestamp.desc()).first()
+        if not latest_run:
+            return jsonify(success_response([], "No runs found"))
+        run_id = latest_run.id
+
+    history = session.query(FitnessHistory).filter(FitnessHistory.generation_run_id == run_id).order_by(FitnessHistory.generation_number).all()
+    result = [{ 'generation': h.generation_number, 'fitness': h.best_fitness, 'avg_fitness': h.avg_fitness } for h in history]
+    
     session.close()
     return jsonify(success_response(result))
 
@@ -189,20 +300,33 @@ def generate_sample_data():
 @app.route('/api/data/export', methods=['GET'])
 @handle_errors
 def export_data():
+    format_type = request.args.get('format', 'json')
     session = get_db_session()
     exporter = DataExporter(session)
     import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp:
-        output_path = tmp.name
-        exporter.export_to_json(output_path)
-    session.close()
     
-    with open(output_path, 'r') as f:
+    if format_type == 'excel':
+        with tempfile.NamedTemporaryFile(mode='w+b', delete=False, suffix='.xlsx') as tmp:
+            output_path = tmp.name
+        exporter.export_to_excel(output_path)
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        filename = 'Court_Schedule_Report.xlsx'
+        read_mode = 'rb'
+    else:
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp:
+            output_path = tmp.name
+        exporter.export_to_json(output_path)
+        mimetype = 'application/json'
+        filename = 'court_data_backup.json'
+        read_mode = 'r'
+    
+    session.close()
+    with open(output_path, read_mode) as f:
         data = f.read()
     os.unlink(output_path)
     
     from flask import Response
-    return Response(data, mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=court_data.json'})
+    return Response(data, mimetype=mimetype, headers={'Content-Disposition': f'attachment;filename={filename}'})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

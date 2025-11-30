@@ -54,6 +54,7 @@ Court_Scheduler_Project/
 ├── dashboard.html          # The Frontend User Interface
 ├── requirements.txt       # List of Python dependencies
 └── README.md               # Project Documentation
+```
 ## 🚀 Installation & Setup
 
 ### Prerequisites

@@ -94,13 +94,11 @@ Bash
 python app.py
 ```
 Keep this terminal window open! You should see a message like:
-```bash * Running on http://0.0.0.0:5000```
+``` * Running on http://0.0.0.0:5000```
 
 2. Open the Dashboard
-Navigate to the project folder in your File Explorer.
-
-Double-click the dashboard.html file.
-
+- Navigate to the project folder in your File Explorer.
+- Double-click the dashboard.html file.
 It will open in your browser and connect to the running server automatically.
 
 🧪 Demo Script (How to Use)

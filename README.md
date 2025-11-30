@@ -99,7 +99,7 @@ Keep this terminal window open! You should see a message like:
 2. Open the Dashboard
 - Navigate to the project folder in your File Explorer.
 - Double-click the dashboard.html file.
-It will open in your browser and connect to the running server automatically.
+- It will open in your browser and connect to the running server automatically.
 
 🧪 Demo Script (How to Use)
 Dashboard Overview: Upon loading, check the top cards. You will see "Total Cases" and "Active Judges".

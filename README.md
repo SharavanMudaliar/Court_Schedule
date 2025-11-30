@@ -54,9 +54,72 @@ Court_Scheduler_Project/
 ├── dashboard.html          # The Frontend User Interface
 ├── requirements.txt       # List of Python dependencies
 └── README.md               # Project Documentation
+## 🚀 Installation & Setup
+
+### Prerequisites
+- Python 3.10 or higher.
+- `pip` (Python Package Manager).
+
+### Step 1: Clone the Repository
+```bash
+git clone [https://github.com/YOUR_USERNAME/court-scheduler.git](https://github.com/YOUR_USERNAME/court-scheduler.git)
+cd court-scheduler
 
 
-🚀 Installation & Setup
-✅ Prerequisites
-- Python 3.10 or higher
-- pip (Python Package Manager)
+Here is the raw Markdown code for the rest of the file. You can copy and paste this directly after the Project Structure section in your README.md.
+
+Markdown
+
+## 🚀 Installation & Setup
+
+### Prerequisites
+- Python 3.10 or higher.
+- `pip` (Python Package Manager).
+
+### Step 1: Clone the Repository
+```bash
+git clone [https://github.com/YOUR_USERNAME/court-scheduler.git](https://github.com/YOUR_USERNAME/court-scheduler.git)
+cd court-scheduler
+Step 2: Install Dependencies
+Bash
+```bash
+pip install -r requirements.txt
+Step 3: Initialize Database
+Run this script to create the database file (court_scheduler.db) and tables:
+
+Bash
+```bash
+python database_models.py
+# Output: ✓ Database tables created successfully
+Step 4: Generate Sample Data
+Populate the system with dummy Indian court cases and judges:
+
+Bash
+```bash
+python db_import_export.py
+# Output: Sample data generated...
+▶️ How to Run
+1. Start the Backend Server
+Open your terminal and run:
+
+Bash
+```bash
+python app.py
+Keep this terminal window open! You should see a message like:
+
+* Running on http://0.0.0.0:5000
+
+2. Open the Dashboard
+Navigate to the project folder in your File Explorer.
+
+Double-click the dashboard.html file.
+
+It will open in your browser and connect to the running server automatically.
+
+🧪 Demo Script (How to Use)
+Dashboard Overview: Upon loading, check the top cards. You will see "Total Cases" and "Active Judges".
+- Run AI: Click the blue "🧬 Run Genetic Algorithm" button.
+- Watch: Look at your terminal window to see the generation logs scrolling.
+- Result: Wait 10-20 seconds. The "Recent GA Runs" table at the bottom will update with the best fitness score.
+- Analyze Charts: Observe the doughnut chart for case types and bar chart for priority distribution.
+- Add Custom Case: Click "➕ Add Case" to manually input a high-priority case and see how the scheduler handles it.
